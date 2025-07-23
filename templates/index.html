@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor HTML para PDF (Python)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0d6efd; --primary-hover: #0b5ed7; --border-color: #dee2e6; --background-color: #f8f9fa; --surface-color: #ffffff; --text-color: #212529; --subtle-text-color: #6c757d; --success-color: #198754; --success-hover: #157347;
+        }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--background-color); color: var(--text-color); }
+        .converter-container { max-width: 800px; margin: 40px auto; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.07); }
+        .tabs-nav { display: flex; border-bottom: 1px solid var(--border-color); }
+        .tab-nav-button { padding: 15px 20px; cursor: pointer; background-color: transparent; border: none; border-bottom: 3px solid transparent; font-size: 16px; color: var(--subtle-text-color); transition: all 0.2s ease-in-out; }
+        .tab-nav-button:hover { color: var(--text-color); }
+        .tab-nav-button.active { border-bottom-color: var(--primary-color); color: var(--primary-color); font-weight: 600; }
+        .tab-panel { display: none; padding: 30px; }
+        .tab-panel.active { display: block; }
+        .tab-panel label { font-weight: 600; display: block; margin-bottom: 8px; color: var(--text-color); }
+        .tab-panel textarea, .tab-panel input[type="text"], .tab-panel input[type="file"] { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-size: 1rem; background-color: var(--surface-color); color: var(--text-color); transition: border-color 0.2s, box-shadow 0.2s; }
+        .tab-panel textarea:focus, .tab-panel input[type="text"]:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15); }
+        .main-controls { padding: 0 30px 30px 30px; }
+        #toggle-options-btn { background: none; border: none; color: var(--primary-color); cursor: pointer; font-size: 15px; padding: 5px; }
+        #options-panel { display: none; margin-top: 15px; padding: 20px; background-color: var(--background-color); border: 1px solid #e9ecef; border-radius: 6px; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .options-grid label { font-weight: normal; color: var(--subtle-text-color); }
+        .options-grid input, .options-grid select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--surface-color); color: var(--text-color); }
+        #main-submit-btn { background-color: var(--success-color); color: white; padding: 15px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 18px; font-weight: 700; width: 100%; margin-top: 20px; transition: background-color 0.2s; }
+        #main-submit-btn:hover { background-color: var(--success-hover); }
+        .preview-container { width: 90%; max-width: 1200px; height: 85vh; margin: 30px auto; display: flex; align-items: center; justify-content: center; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.07); position: relative; }
+        #pdf-preview { display: none; width: 100%; height: 100%; border: none; border-radius: 12px; }
+        .preview-placeholder { text-align: center; color: var(--subtle-text-color); }
+        h2 { color: var(--text-color); font-weight: 700; }
+        .loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 6px solid #e9ecef; border-radius: 50%; border-top: 6px solid var(--primary-color); width: 60px; height: 60px; animation: spin 1.5s linear infinite; display: none; z-index: 10; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="converter-container">
+        <div class="tabs-nav">
+            <button class="tab-nav-button" data-tab="url">Convert URL to PDF</button>
+            <button class="tab-nav-button" data-tab="file">Convert HTML files</button>
+            <button class="tab-nav-button active" data-tab="html">HTML code</button>
+        </div>
+        <div class="tabs-content">
+            <div id="tab-url" class="tab-panel">
+                <form id="form-url" data-endpoint="/convert/url">
+                    <label for="url_input">Web addresses:</label>
+                    <textarea id="url_input" name="url" rows="4" placeholder="https://www.example.com" required></textarea>
+                </form>
+            </div>
+            <div id="tab-file" class="tab-panel">
+                <form id="form-html-file" data-endpoint="/convert/file" enctype="multipart/form-data">
+                    <label for="file_input">Upload de arquivos HTML:</label>
+                    <input type="file" id="file_input" name="htmlfile" accept=".html,.htm" required>
+                </form>
+            </div>
+            <div id="tab-html" class="tab-panel active">
+                <form id="form-html-string" data-endpoint="/convert/html">
+                    <label for="html_input">HTML code:</label>
+                    <textarea id="html_input" name="html_content" rows="8" required></textarea>
+                </form>
+            </div>
+        </div>
+        <div class="main-controls">
+            <button id="toggle-options-btn" aria-controls="options-panel" aria-expanded="false"><i class="fas fa-cog"></i> Mais opções</button>
+            <div id="options-panel">
+                <div class="options-grid">
+                    <div><label for="margin_top">Margem Superior (mm)</label><input type="number" id="margin_top" name="margin_top" value="0" min="0"></div>
+                    <div><label for="margin_bottom">Margem Inferior (mm)</label><input type="number" id="margin_bottom" name="margin_bottom" value="0" min="0"></div>
+                    <div><label for="margin_left">Margem Esquerda (mm)</label><input type="number" id="margin_left" name="margin_left" value="0" min="0"></div>
+                    <div><label for="margin_right">Margem Direita (mm)</label><input type="number" id="margin_right" name="margin_right" value="0" min="0"></div>
+                </div>
+            </div>
+            <button id="main-submit-btn">Converter HTML para PDF</button>
+        </div>
+    </div>
+    <div class="preview-container">
+        <div class="loader"></div>
+        <iframe id="pdf-preview" name="pdf-preview"></iframe>
+        <div class="preview-placeholder">
+            <h2>A pré-visualização do PDF aparecerá aqui</h2>
+            <p>Preencha um dos formulários acima e clique em "Converter" para começar.</p>
+        </div>
+    </div>
+    <script type="text/javascript">
+        // Este script lida com a interface do usuário, como a navegação por abas e a submissão
+        // do formulário para o backend Python, exibindo o resultado em um iframe.
+        const tabButtons = document.querySelectorAll(".tab-nav-button");
+        const tabPanels = document.querySelectorAll(".tab-panel");
+        tabButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                tabButtons.forEach(btn => btn.classList.remove("active"));
+                button.classList.add("active");
+                const targetTab = button.getAttribute("data-tab");
+                tabPanels.forEach(panel => {
+                    panel.classList.toggle("active", panel.id === `tab-${targetTab}`);
+                });
+            });
+        });
+
+        const toggleOptionsBtn = document.getElementById("toggle-options-btn");
+        const optionsPanel = document.getElementById("options-panel");
+        toggleOptionsBtn.addEventListener("click", () => {
+            const isVisible = optionsPanel.style.display === "block";
+            optionsPanel.style.display = isVisible ? "none" : "block";
+            toggleOptionsBtn.setAttribute("aria-expanded", String(!isVisible));
+        });
+        
+        const mainSubmitBtn = document.getElementById("main-submit-btn");
+        mainSubmitBtn.addEventListener("click", () => {
+            const activeForm = document.querySelector(".tab-panel.active form");
+            if (activeForm) {
+                // Adiciona as opções de margem ao formulário antes de submeter
+                const options = document.getElementById('options-panel').querySelectorAll('input');
+                options.forEach(opt => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = opt.name;
+                    hiddenInput.value = opt.value;
+                    activeForm.appendChild(hiddenInput);
+                });
+                
+                // Define o action e method para submissão tradicional
+                const endpoint = activeForm.getAttribute('data-endpoint');
+                activeForm.action = endpoint;
+                activeForm.method = 'POST';
+                activeForm.target = 'pdf-preview'; // Direciona a resposta para o iframe
+                
+                // Limpa o placeholder e mostra o loader
+                document.querySelector('.preview-placeholder').style.display = 'none';
+                document.getElementById('pdf-preview').style.display = 'none';
+                document.querySelector('.loader').style.display = 'block';
+
+                activeForm.submit();
+
+                // Esconde o loader após um tempo (o iframe cuidará de se mostrar)
+                 document.getElementById('pdf-preview').onload = () => {
+                    document.querySelector('.loader').style.display = 'none';
+                    document.getElementById('pdf-preview').style.display = 'block';
+                 };
+            }
+        });
+    </script>
+</body>
+</html>
