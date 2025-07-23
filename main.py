@@ -11,16 +11,16 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from playwright.async_api import async_playwright, Browser
 
-# Corrige o erro 'NotImplementedError' no Windows com asyncio
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-# Variável global para o navegador (similar ao JS)
+# Variável global para o navegador
 browser: Optional[Browser] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerencia o ciclo de vida da aplicação: inicia e fecha o Playwright."""
+    # CORREÇÃO AQUI: Usar WindowsProactorEventLoopPolicy
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    
     global browser
     print("Iniciando o Playwright...")
     playwright = await async_playwright().start()
@@ -54,7 +54,7 @@ def build_pdf_options(form_data: dict):
     }
 
 async def process_conversion(page_content_setter, form_data: dict, filename_base: str):
-    """Função central que realiza a conversão, traduzida diretamente do server.js."""
+    """Função central que realiza a conversão."""
     if not browser:
         raise Exception("Navegador não iniciado.")
 
@@ -84,7 +84,6 @@ async def process_conversion(page_content_setter, form_data: dict, filename_base
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """Serve a página principal."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/convert/url", response_class=StreamingResponse)
